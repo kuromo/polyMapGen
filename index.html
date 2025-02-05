@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='utf-8'>
+    <meta http-equiv='X-UA-Compatible' content='IE=edge'>
+    <title>mapgen</title>
+    <meta name='viewport' content='width=device-width, initial-scale=1'>
+    <link rel='stylesheet' type='text/css' media='screen' href='bulma.css'>
+    <link rel='stylesheet' type='text/css' media='screen' href='main.css'>
+    <script src='main.js'></script>
+    <script src='poisson.js'></script>
+    <script src="https://www.unpkg.com/delaunator@5.0.1/delaunator.js"></script>
+    <script src="https://unpkg.com/simplex-noise@2.4.0/simplex-noise.js"></script>
+</head>
+<body>
+    <section class="main-content columns is-fullheight">
+  
+        <aside class="column is-2 is-narrow-mobile is-fullheight section is-hidden-mobile">
+          <p class="menu-label is-hidden-touch is-underlined">Settings</p>
+          <br/>
+            <p class="menu-label is-hidden-touch smallDesc">canvas size</p>   
+            <div>
+                <label></label>
+                <label for="canvasX" class="label">width</label>
+                <input type="text" id="canvasX" class="input" value="400" data-axis="width" onchange="updateCanvas(this)">
+                <label for="canvasY" class="label">height</label>
+                <input type="text" id="canvasY" class="input" value="200" data-axis="height" onchange="updateCanvas(this)">
+            </div>
+            <p class="menu-label is-hidden-touch smallDesc">poisson disc sampling</p>
+            <div>
+                    <label for="amtPoints" class="label">Amounth</label>
+                    <input type="text" id="amtPoints" class="input" value="5000">
+                    <label for="spacePoints" class="label is-sm">Spacing</label>
+                    <input type="text" id="spacePoints" class="input" value="10">
+            </div>
+            <p class="menu-label is-hidden-touch smallDesc">elevation</p> 
+            <div>
+                <label for="noiseWL" class="label">noise wavelength</label>
+                <input type="text" id="noiseWL" class="input" value="0.5">
+                <label for="elevationTresh" class="label">elevation treshold</label>
+                <input type="text" id="elevationTresh" class="input" value="0.5">
+            </div>
+                
+                
+
+                <button class="button is-primary" id="genBtn" onclick="genPoint()">gen</button>
+                <button class="button is-primary" id="genBtn" onclick="genPoint(true)">gen lines</button>
+        </aside>
+      
+        <div id="mainCont" class="container column is-10 is-fullhd">
+            <h1 class="title">eFISHent point stuff</h1>
+                <div class="canvasWrap">
+                    <canvas id="myCanvas" width="400" height="200"></canvas> 
+                    <label for="myCanvas" class="label">poisson</label>
+                </div>
+                <div class="canvasWrap">
+                    <canvas id="voroCanvas" width="400" height="200"></canvas>
+                    <label for="voroCanvas" class="label">voronoi</label>
+                </div>
+                <div class="canvasWrap">
+                    <canvas id="elevationCanvas" width="400" height="200"></canvas> 
+                    <label for="elevationCanvas" class="label">elevation</label>
+                </div>
+        </div>
+    </section>
+
+    
+</body>
+</html>
