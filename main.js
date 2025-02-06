@@ -89,8 +89,6 @@ function genBorderPoints(points){
         points.push({x: -10, y: spacing * i});
         points.push({x: canvasSize.width + 10, y: spacing * i});
     }
-    console.log(xPoints)
-    console.log(yPoints)
 
     return points
 }
