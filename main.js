@@ -4,8 +4,8 @@ let canvasSize = {width: 400, height: 200}
 function updateCanvas(e){
     let axis = e.dataset.axis
     document.querySelectorAll('canvas').forEach(element => {
-        element[axis] = e.value
-        canvasSize[axis] = e.value
+        element[axis] = parseInt(e.value)
+        canvasSize[axis] = parseInt(e.value)
     });
 }
 
@@ -64,8 +64,42 @@ function printPoints(poiArr,wLines){
     }
 }
 
+function genBorderPoints(points){
+    //add point outsine of map bounds to generate cleaner corner polygons
+
+    //add 4 corner points
+    points.push({x: -10, y: -10});                                  // LT
+    points.push({x: canvasSize.width+10, y: canvasSize.height+10}); // RB
+    points.push({y: -10, x: canvasSize.width+10});                  // RT
+    points.push({y: canvasSize.height+10, x: -10});                 // LB
+
+    //calculate how many points on each axis
+    let spacing = parseInt(document.getElementById("spacePoints").value)
+    let xPointsAmnt = Math.floor(canvasSize.width / spacing)
+    let yPointsAmnt = Math.floor(canvasSize.height / spacing)
+
+    //gen x axis points
+    for (let i = 0; i < xPointsAmnt; i++) {
+        points.push({x: spacing * i, y: -10});
+        points.push({x: spacing * i, y: canvasSize.height + 10});
+    }
+
+    //gen y axis points
+    for (let i = 0; i < yPointsAmnt; i++) {
+        points.push({x: -10, y: spacing * i});
+        points.push({x: canvasSize.width + 10, y: spacing * i});
+    }
+    console.log(xPoints)
+    console.log(yPoints)
+
+    return points
+}
 
 function genVoro(points){
+    if(document.getElementById("borderfix").checked){
+        points = genBorderPoints(points)
+    }
+
     let delaunay = Delaunator.from(points, loc => loc.x, loc => loc.y);
     const numTriangles = delaunay.halfedges.length / 3;
     let centroids = [];
@@ -140,7 +174,7 @@ function drawCellBoundaries(canvas, map, delaunay) {
 
     map.elevation = assignElevation(map);
 
-    let elevTresh = document.getElementById("elevationTresh").value
+    let elevTresh = parseFloat(document.getElementById("elevationTresh").value)
     drawCellColors(
         document.getElementById("elevationCanvas"),
         map,
@@ -150,7 +184,7 @@ function drawCellBoundaries(canvas, map, delaunay) {
 }
 
 function assignElevation(map) {
-    let waveLength = document.getElementById("noiseWL").value
+    let waveLength = parseFloat(document.getElementById("noiseWL").value)
     const noise = new SimplexNoise();
     let {points, numRegions} = map;
     let elevation = [];
@@ -161,7 +195,7 @@ function assignElevation(map) {
         elevation[r] = (1 + noise.noise2D(nx / waveLength, ny / waveLength)) / 2;
         // modify noise to make islands:
         let d = 2 * Math.max(Math.abs(nx), Math.abs(ny)); // should be 0-1
-        console.log(d)
+        //console.log(d)
         elevation[r] = (1 + elevation[r] - d) / 2;
     }
     return elevation;
