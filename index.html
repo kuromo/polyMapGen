@@ -16,8 +16,10 @@
     <section class="main-content columns is-fullheight">
   
         <aside class="column is-2 is-narrow-mobile is-fullheight section is-hidden-mobile">
-          <p class="menu-label is-hidden-touch is-underlined">Settings</p>
-          <br/>
+            <p class="menu-label is-hidden-touch is-underlined">Settings</p>
+            <br/>
+            <button class="button is-primary" id="genBtn" onclick="genPoint()">gen</button>
+            <button class="button is-primary" id="genBtn" onclick="genPoint(true)">gen lines</button>
             <p class="menu-label is-hidden-touch smallDesc">canvas size</p>   
             <div>
                 <label></label>
@@ -32,8 +34,10 @@
                     <input type="text" id="amtPoints" class="input" value="5000">
                     <label for="spacePoints" class="label is-sm">Spacing</label>
                     <input type="text" id="spacePoints" class="input" value="10">
-                    <input type="checkbox" id="borderfix"/>
-                    artificial border points
+                    <input type="checkbox" id="borderfix"/> artificial border points
+                    <label for="borderLayers" class="label is-sm">border layers</label>
+                    <input type="text" id="borderLayers" class="input" value="2">
+                    
             </div>
             <p class="menu-label is-hidden-touch smallDesc">elevation</p> 
             <div>
@@ -42,9 +46,13 @@
                 <label for="elevationTresh" class="label">elevation treshold</label>
                 <input type="text" id="elevationTresh" class="input" value="0.5">
             </div>
+            <p class="menu-label is-hidden-touch smallDesc">debug</p> 
+            <div>
+                <input type="checkbox" id="renderPoints"/> render points
+                <input type="checkbox" id="renderCenters"/> render centers
+            </div>
                 
-                <button class="button is-primary" id="genBtn" onclick="genPoint()">gen</button>
-                <button class="button is-primary" id="genBtn" onclick="genPoint(true)">gen lines</button>
+                
         </aside>
       
         <div id="mainCont" class="container column is-10 is-fullhd">

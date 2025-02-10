@@ -1,4 +1,8 @@
+let map = {}
 let canvasSize = {width: 400, height: 200}
+let waterColor = "hsl(240, 30%, 50%)"
+let landColor = "hsl(90, 20%, 50%)"
+
 
 
 function updateCanvas(e){
@@ -67,28 +71,33 @@ function printPoints(poiArr,wLines){
 function genBorderPoints(points){
     //add point outsine of map bounds to generate cleaner corner polygons
 
-    //add 4 corner points
-    points.push({x: -10, y: -10});                                  // LT
-    points.push({x: canvasSize.width+10, y: canvasSize.height+10}); // RB
-    points.push({y: -10, x: canvasSize.width+10});                  // RT
-    points.push({y: canvasSize.height+10, x: -10});                 // LB
-
-    //calculate how many points on each axis
     let spacing = parseInt(document.getElementById("spacePoints").value)
-    let xPointsAmnt = Math.floor(canvasSize.width / spacing)
-    let yPointsAmnt = Math.floor(canvasSize.height / spacing)
+    let borderSpace = spacing//10
+    //calculate how many points on each axis (+1 for 0 point)
+    let xPointsAmnt = Math.floor(canvasSize.width / spacing) +1
+    let yPointsAmnt = Math.floor(canvasSize.height / spacing) +1
 
-    //gen x axis points
-    for (let i = 0; i < xPointsAmnt; i++) {
-        points.push({x: spacing * i, y: -10});
-        points.push({x: spacing * i, y: canvasSize.height + 10});
-    }
+        let layers = document.getElementById("borderLayers").value
+        for (let l = 1; l <= layers; l++) {
+            //add 4 corner points
+            points.push({x: -borderSpace * l, y: -borderSpace * l});                                  // LT
+            points.push({x: canvasSize.width + borderSpace * l, y: canvasSize.height + borderSpace * l}); // RB
+            points.push({y: -borderSpace * l, x: canvasSize.width + borderSpace * l});                  // RT
+            points.push({y: canvasSize.height + borderSpace * l, x: -borderSpace * l});                 // LB
 
-    //gen y axis points
-    for (let i = 0; i < yPointsAmnt; i++) {
-        points.push({x: -10, y: spacing * i});
-        points.push({x: canvasSize.width + 10, y: spacing * i});
-    }
+            //gen x axis points
+            for (let i = 0; i < xPointsAmnt; i++) {
+                points.push({x: spacing * i, y: -borderSpace * l});
+                points.push({x: spacing * i, y: canvasSize.height + borderSpace * l});
+            }
+
+            //gen y axis points
+            for (let i = 0; i < yPointsAmnt; i++) {
+                points.push({x: -borderSpace * l, y: spacing * i});
+                points.push({x: canvasSize.width + borderSpace * l, y: spacing * i});
+            }
+        }
+
 
     return points
 }
@@ -115,7 +124,7 @@ function genVoro(points){
 
     //console.log(centroids)
 
-    let map = {
+    map = {
         points: points,
         numRegions: points.length,
         numTriangles: delaunay.halfedges.length / 3,
@@ -151,22 +160,26 @@ function drawCellBoundaries(canvas, map, delaunay) {
         }
     }
 
-    /*for(let i in centers){
+    if(document.getElementById("renderCenters").checked){
+        for(let i in centers){
 
-        //draw points
-        ctx.fillStyle = "red"
-        ctx.beginPath()
-        ctx.fillRect(centers[i].x,centers[i].y,1,1);
-        
+            //draw points
+            ctx.fillStyle = "blue"
+            ctx.beginPath()
+            ctx.fillRect(centers[i].x,centers[i].y,1,1);
+            
+        }
     }
-    for(let i in points){
+    if(document.getElementById("renderPoints").checked){
+        for(let i in points){
 
-        //draw points
-        ctx.fillStyle = "blue"
-        ctx.beginPath()
-        ctx.fillRect(points[i].x,points[i].y,1,1);
-        
-    }*/
+            //draw points
+            ctx.fillStyle = "red"
+            ctx.beginPath()
+            ctx.fillRect(points[i].x,points[i].y,1,1);
+            
+        }
+    }
 
     ctx.restore();
 
@@ -176,9 +189,11 @@ function drawCellBoundaries(canvas, map, delaunay) {
     drawCellColors(
         document.getElementById("elevationCanvas"),
         map,
-        r => map.elevation[r] < elevTresh? "hsl(240, 30%, 50%)" : "hsl(90, 20%, 50%)",
+        r => map.elevation[r] < elevTresh? waterColor : landColor,
         delaunay
     );
+
+    console.log(map)
 }
 
 function assignElevation(map) {
@@ -215,7 +230,7 @@ function drawCellColors(canvas, map, colorFn, delaunay) {
     ctx.save();
     ctx.clearRect(0,0,canvasSize.width,canvasSize.height)
     let seen = new Set();  // of region ids
-    let {triangles, numEdges, centers} = map;
+    let {triangles, numEdges, centers, points} = map;
     for (let e = 0; e < numEdges; e++) {
         const r = triangles[nextHalfedge(e)];
         if (!seen.has(r)) {
@@ -225,10 +240,50 @@ function drawCellColors(canvas, map, colorFn, delaunay) {
             ctx.fillStyle = colorFn(r);
             ctx.beginPath();
             ctx.moveTo(vertices[0].x, vertices[0].y);
+            
             for (let i = 1; i < vertices.length; i++) {
                 ctx.lineTo(vertices[i].x, vertices[i].y);
+                //set poly to water if any point is outside canvas
+                if(vertices[i].x<0||vertices[i].y<0||vertices[i].x>canvasSize.width||vertices[i].y>canvasSize.height){
+                    ctx.fillStyle = waterColor
+                }
+
+                //@TODO maybe figgure out this shit? some edgesAroundPoint returns have less than 3 vertices (no triangle/poly)
+                /*if(vertices.length<3){
+                    
+                    ctx.strokeStyle = "magenta"
+                    ctx.stroke()
+                    ctx.moveTo(vertices[i].x, vertices[i].y);
+                }*/
             }
-            ctx.fill();
+            if(vertices.length<3){
+                //ctx.strokeStyle = "pink"
+                //ctx.stroke()
+            }else{
+                ctx.fill();
+            }
+            //console.log(vertices.length)
+        }
+    }
+
+    if(document.getElementById("renderCenters").checked){
+        for(let i in centers){
+
+            //draw points
+            ctx.fillStyle = "blue"
+            ctx.beginPath()
+            ctx.fillRect(centers[i].x,centers[i].y,1,1);
+            
+        }
+    }
+    if(document.getElementById("renderPoints").checked){
+        for(let i in points){
+
+            //draw points
+            ctx.fillStyle = "red"
+            ctx.beginPath()
+            ctx.fillRect(points[i].x,points[i].y,1,1);
+            
         }
     }
 }
