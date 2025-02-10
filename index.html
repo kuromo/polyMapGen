@@ -15,7 +15,7 @@
 <body>
     <section class="main-content columns is-fullheight">
   
-        <aside class="column is-2 is-narrow-mobile is-fullheight section is-hidden-mobile">
+        <aside id="settings" class="column is-2 is-narrow-mobile is-fullheight section is-hidden-mobile">
             <p class="menu-label is-hidden-touch is-underlined">Settings</p>
             <br/>
             <button class="button is-primary" id="genBtn" onclick="genPoint()">gen</button>
@@ -48,8 +48,15 @@
             </div>
             <p class="menu-label is-hidden-touch smallDesc">debug</p> 
             <div>
-                <input type="checkbox" id="renderPoints"/> render points
-                <input type="checkbox" id="renderCenters"/> render centers
+                <input type="checkbox" id="renderPoints"/> render points<br/>
+                <input type="checkbox" id="renderCenters"/> render centers<br/>
+            </div>
+            <p class="menu-label is-hidden-touch smallDesc">seeds</p> 
+            <div>
+                <input type="checkbox" id="fixedPoissonSeed"/> fixed poisson seed<br/>
+                <input type="checkbox" id="customNoiseSeed"/> custom noise seed<br/>
+                <label for="noiseSeed" class="label">noise seed</label>
+                <input type="text" id="noiseSeed" class="input" value="0">
             </div>
                 
                 

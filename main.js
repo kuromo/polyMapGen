@@ -198,7 +198,14 @@ function drawCellBoundaries(canvas, map, delaunay) {
 
 function assignElevation(map) {
     let waveLength = parseFloat(document.getElementById("noiseWL").value)
-    const noise = new SimplexNoise();
+
+    let noiseSeed = Math.random()
+    if(document.getElementById("customNoiseSeed").checked){
+        noiseSeed = parseFloat(document.getElementById("noiseSeed").value)
+    }
+    document.getElementById("noiseSeed").value = noiseSeed
+
+    const noise = new SimplexNoise(noiseSeed);
     let {points, numRegions} = map;
     let elevation = [];
     for (let r = 0; r < numRegions; r++) {

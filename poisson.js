@@ -12,9 +12,16 @@ function* poissonDiscSampler(width, height, radius) {
   
     // Pick a random existing sample from the queue.
     pick: while (queue.length) {
-      const i = Math.random() * queue.length | 0;
+      let poissonSeed = Math.random()
+      if(document.getElementById("fixedPoissonSeed").checked){
+        poissonSeed = 0.3748
+      }
+
+      const i = poissonSeed * queue.length | 0;
+      //const i = Math.random() * queue.length | 0;
       const parent = queue[i];
-      const seed = Math.random();
+      const seed = poissonSeed;
+      //const seed = Math.random();
       const epsilon = 0.0000001;
       
       // Make a new candidate.

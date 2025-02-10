@@ -1,5 +1,10 @@
-aside{
-    background-color: hsl(221, 20%, 20%);    
+#settings{
+    background-color: hsl(221, 20%, 20%);  
+    position: sticky;
+    display: inline-block;
+    vertical-align: top;
+    max-height: 100vh;
+    overflow-y: auto; 
 }
 
 canvas{
