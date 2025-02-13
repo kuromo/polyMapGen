@@ -1,4 +1,5 @@
 let map = {}
+let delaunay
 let canvasSize = {width: 400, height: 200}
 let waterColor = "hsl(240, 30%, 50%)"
 let landColor = "hsl(90, 20%, 50%)"
@@ -53,7 +54,7 @@ function printPoints(poiArr,wLines){
         if(wLines && poiArr[i].parent){
             console.log("has wl and parent")
             ctx.beginPath()
-            ctx.lineWidth = 0.05;
+            ctx.lineWidth = 0.5;
             ctx.strokeStyle = "#0f0"
             ctx.moveTo(poiArr[i].add[0],poiArr[i].add[1]);
             ctx.lineTo(poiArr[i].parent[0],poiArr[i].parent[1]);
@@ -107,7 +108,7 @@ function genVoro(points){
         points = genBorderPoints(points)
     }
 
-    let delaunay = Delaunator.from(points, loc => loc.x, loc => loc.y);
+    delaunay = Delaunator.from(points, loc => loc.x, loc => loc.y);
     const numTriangles = delaunay.halfedges.length / 3;
     let centroids = [];
 
@@ -141,13 +142,29 @@ function genVoro(points){
 
 function triangleOfEdge(e)  { return Math.floor(e / 3); }
 function nextHalfedge(e) { return (e % 3 === 2) ? e - 2 : e + 1; }
+function prevHalfedge(e) { return (e % 3 === 0) ? e + 2 : e - 1; }
+function pointsOfTriangle(t) {
+    return edgesOfTriangle(t)
+        .map(e => map.triangles[e]);
+}
+function edgesOfTriangle(t) { return [3 * t, 3 * t + 1, 3 * t + 2]; }
+function trianglesAdjacentToTriangle(t) {
+    const adjacentTriangles = [];
+    for (const e of edgesOfTriangle(t)) {
+        const opposite = map.halfedges[e];
+        if (opposite >= 0) {
+            adjacentTriangles.push(triangleOfEdge(opposite));
+        }
+    }
+    return adjacentTriangles;
+}
 
 function drawCellBoundaries(canvas, map, delaunay) {
     let {points, centers, halfedges, triangles, numEdges} = map;
     let ctx = canvas.getContext('2d');
     ctx.clearRect(0,0,canvasSize.width,canvasSize.height)
     ctx.save();
-    ctx.lineWidth = 0.02;
+    ctx.lineWidth = 0.5;
     ctx.strokeStyle = "#0f0";
     for (let e = 0; e < numEdges; e++) {
         if (e < delaunay.halfedges[e]) {
@@ -157,6 +174,20 @@ function drawCellBoundaries(canvas, map, delaunay) {
             ctx.moveTo(p.x, p.y);
             ctx.lineTo(q.x, q.y);
             ctx.stroke();
+        }
+    }
+
+    if(document.getElementById("renderTriangles").checked){
+        for(let i = 0; i < triangles.length; i++){
+            if (i > halfedges[i]) {
+                const p = points[triangles[i]];
+                const q = points[triangles[nextHalfedge(i)]];
+                ctx.strokeStyle = "orange"
+                ctx.beginPath();
+                ctx.moveTo(p.x, p.y);
+                ctx.lineTo(q.x, q.y);
+                ctx.stroke();
+            }
         }
     }
 
@@ -221,13 +252,13 @@ function assignElevation(map) {
     return elevation;
 }
 
-function edgesAroundPoint(delaunay, start) {
+function edgesAroundPoint(start) {
     const result = [];
     let incoming = start;
     do {
         result.push(incoming);
         const outgoing = nextHalfedge(incoming);
-        incoming = delaunay.halfedges[outgoing];
+        incoming = map.halfedges[outgoing];
     } while (incoming !== -1 && incoming !== start);
     return result;
 }
@@ -238,21 +269,31 @@ function drawCellColors(canvas, map, colorFn, delaunay) {
     ctx.clearRect(0,0,canvasSize.width,canvasSize.height)
     let seen = new Set();  // of region ids
     let {triangles, numEdges, centers, points} = map;
+    let landTri = []
     for (let e = 0; e < numEdges; e++) {
         const r = triangles[nextHalfedge(e)];
         if (!seen.has(r)) {
             seen.add(r);
-            let vertices = edgesAroundPoint(delaunay, e)
-                .map(e => centers[triangleOfEdge(e)]);
+            let vertices = edgesAroundPoint(e)
+                .map(e => centers[triangleOfEdge(e)])
             ctx.fillStyle = colorFn(r);
             ctx.beginPath();
             ctx.moveTo(vertices[0].x, vertices[0].y);
+
+
+            if(map.elevation[r] > parseFloat(document.getElementById("elevationTresh").value)){
+                landTri.push(r)
+            }
             
             for (let i = 1; i < vertices.length; i++) {
                 ctx.lineTo(vertices[i].x, vertices[i].y);
                 //set poly to water if any point is outside canvas
                 if(vertices[i].x<0||vertices[i].y<0||vertices[i].x>canvasSize.width||vertices[i].y>canvasSize.height){
-                    ctx.fillStyle = waterColor
+                    //ctx.fillStyle = waterColor
+
+                    //@TODO set elevation of poly to sub treshold
+                    //landTri.pop(r)
+
                 }
 
                 //@TODO maybe figgure out this shit? some edgesAroundPoint returns have less than 3 vertices (no triangle/poly)
@@ -272,6 +313,8 @@ function drawCellColors(canvas, map, colorFn, delaunay) {
             //console.log(vertices.length)
         }
     }
+
+    map.landTri = landTri
 
     if(document.getElementById("renderCenters").checked){
         for(let i in centers){
@@ -295,3 +338,350 @@ function drawCellColors(canvas, map, colorFn, delaunay) {
     }
 }
 
+
+function getLandPoints(){
+    let landPoints = []
+
+    for(let p = 0; p < map.points.length; p++){
+        if(map.elevation[p]>parseFloat(document.getElementById("elevationTresh").value)){
+            landPoints.push(p)
+        }
+      }
+
+    return landPoints
+}
+
+
+
+
+
+function bare(inp){
+    let c = document.getElementById("elevationCanvas")
+    let ctx = c.getContext('2d');
+   
+    const seen = new Set();  // of point ids
+    for (let e = 0; e < map.triangles.length; e++) {
+        const p = map.triangles[nextHalfedge(e)];
+        if (!seen.has(p)&&map.points.indexOf(map.points[p])==inp) {
+            seen.add(p);
+            const edges = edgesAroundPoint(e);
+            const triangles = edges.map(e => triangleOfEdge(e))
+            const vertices = triangles.map(e => map.centers[e])
+
+            console.log("origin point: " +map.points.indexOf(map.points[map.triangles[map.halfedges[edges[0]]]]))
+
+
+
+            ctx.strokeStyle = "magenta"
+            ctx.beginPath();
+            ctx.moveTo(vertices[0].x, vertices[0].y);
+            for (let i = 1; i < vertices.length; i++) {
+                ctx.lineTo(vertices[i].x, vertices[i].y);
+            }
+            ctx.lineTo(vertices[0].x, vertices[0].y);
+            ctx.stroke()
+
+
+            for(let i = 0;i < edges.length; i++){
+                let tri = map.triangles[edges[i]]
+                let pt = map.points[tri]
+                let sp = map.points[map.triangles[map.halfedges[edges[i]]]]
+    
+                ctx.beginPath()
+                ctx.strokeStyle = "orange"
+                ctx.moveTo(sp.x,sp.y)
+                //ctx.lineTo(map.points[eop[e]].x,map.points[eop[e]].y)
+                ctx.lineTo(pt.x,pt.y)
+                ctx.stroke()
+            }
+ 
+        }
+    }
+
+
+
+
+
+
+/*
+
+    for(let i = 0;i < eop.length; i++){
+        let tris = triangleOfEdge(eop[i])
+
+
+        let tri = map.triangles[eop[i]]
+        let pt = map.points[tri]
+        let sp = map.points[map.triangles[map.halfedges[eop[i]]]]
+
+
+        console.log("sub index: " + map.points.indexOf(sp))
+        ctx.fillStyle = "yellow"
+        ctx.beginPath()
+        ctx.fillRect(sp.x,sp.y,5,5);
+
+
+        ctx.beginPath()
+        ctx.strokeStyle = "orange"
+        ctx.moveTo(sp.x,sp.y)
+        //ctx.lineTo(map.points[eop[e]].x,map.points[eop[e]].y)
+        ctx.lineTo(pt.x,pt.y)
+        ctx.stroke()
+    }*/
+    
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//////////// DEAD TESTING SHIT ////////////////
+/*
+function getLandPolys(){
+    let landPolys = []
+
+    for(let p in map.points){
+        if(map.elevation[p]>parseFloat(document.getElementById("elevationTresh").value)){
+            landPolys.push(p)
+        }
+      }
+
+    return landPolys
+}
+
+function landPoints(){
+    let landPolys = getLandPolys()
+    let c = document.getElementById("elevationCanvas")
+    let ctx = c.getContext('2d');
+
+
+    for(let p in landPolys){
+        let landPoint = map.points[landPolys[p]]
+        console.log(map.elevation[landPolys[p]])
+        
+        ctx.fillStyle = "magenta"
+        ctx.beginPath()
+        ctx.fillRect(landPoint.x,landPoint.y,1,1);
+    }
+}
+
+function landEdges(){
+    let landPolys = getLandPolys()
+    let c = document.getElementById("elevationCanvas")
+    let ctx = c.getContext('2d');
+
+    console.log("land poly count " + landPolys.length)
+
+    for(let p in landPolys){
+
+        let landPoint = map.points[landPolys[p]]
+
+        console.log("poly " +landPolys[p])
+        
+        ctx.fillStyle = "magenta"
+        ctx.beginPath()
+        ctx.fillRect(landPoint.x,landPoint.y,3,3);
+
+        let centers = map.centers
+        let points = map.points
+        let landEdges = edgesAroundPoint(parseInt(landPolys[p]))
+            //.map(r => points[triangleOfEdge(r)]);
+
+            ctx.strokeStyle = "magenta"
+            
+            //console.log("edge count " + landEdges.length)
+            for (let i = 0; i < landEdges.length; i++) {
+                let tri = triangleOfEdge(landEdges[i])
+                let p1 = centers[tri]
+                let p2 = centers[tri+1]
+                let p3 = centers[tri+2]
+
+                console.log("edge " +landPolys[p])
+                console.log("p1 " +p1.x + " : " +p1.y)
+                console.log("p2 " +p2.x + " : " +p2.y)
+                console.log("p3 " +p3.x + " : " +p3.y)
+
+                ctx.fillStyle = "yellow"
+                ctx.beginPath()
+                ctx.fillRect(p1.x,p1.y,1,1);
+                ctx.beginPath()
+                ctx.fillRect(p2.x,p2.y,1,1);
+                ctx.beginPath()
+                ctx.fillRect(p3.x,p3.y,1,1);
+            }
+
+        
+            let seen = new Set();  // of region ids
+            let {triangles, numEdges, centers, points} = map;
+            for (let e = 0; e < numEdges; e++) {
+                const r = tr;iangles[nextHalfedge(e)];
+                if (!seen.has(r)) {
+                    seen.add(r);
+                    let vertices = edgesAroundPoint(delaunay, e)
+                        .map(e => centers[triangleOfEdge(e)])
+
+
+
+        let centers = map.centers
+        let landEdges = edgesAroundPoint(delaunay, parseInt(landPolys[p]))
+            .map(r => centers[triangleOfEdge(r)]);
+
+            ctx.strokeStyle = "magenta"
+            ctx.beginPath();
+            ctx.moveTo(landEdges[0].x, landEdges[0].y);
+            
+            for (let i = 0; i < landEdges.length; i++) {
+                ctx.lineTo(landEdges[i].x, landEdges[i].y);
+                ctx.stroke()
+                ctx.moveTo(landEdges[i].x, landEdges[i].y);
+            }
+
+    }
+}
+
+
+function findShore(){
+    let c = document.getElementById("elevationCanvas")
+    let ctx = c.getContext('2d');
+    let shoreAm = []
+    for(let i in map.landTri){
+        let adjTri = trianglesAdjacentToTriangle(map.landTri[i])
+        for(let a in adjTri){
+            if(!map.landTri.includes(adjTri[a])){
+
+                let pois= pointsOfTriangle(adjTri[a])
+                let p0 = map.points[pois[0]]
+                let p1 = map.points[pois[1]]
+                let p2 = map.points[pois[2]]
+
+                ctx.fillStyle = "yellow"
+                ctx.beginPath()
+                ctx.moveTo(p0.x,p0.y);
+                ctx.lineTo(p1.x,p1.y);
+                ctx.lineTo(p2.x,p2.y);
+                ctx.fill()
+
+                //console.log(map.halfedges[adjTri[a]] + " is not land and connected to " +map.landTri[i] + "whis has edges: "+edgesOfTriangle(map.landTri[i]))
+                //console.log(edgesOfTriangle(map.landTri[i]))
+                let landEdges = edgesOfTriangle(map.landTri[i])
+                let adjEdges = edgesOfTriangle(adjTri[a])
+                for(let e in adjEdges){
+                    let currEdge = map.halfedges[adjEdges[e]]
+                    if(landEdges.includes(currEdge) && !shoreAm.includes(adjEdges[e])){
+                        shoreAm.push(currEdge)
+
+                        ctx.fillStyle = "magenta"
+                        //ctx.beginPath()
+                        //ctx.fillRect(map.points[map.triangles[currEdge]].x,map.points[map.triangles[currEdge]].y,3,3);
+                    }
+                }
+            }
+        }
+    }
+    console.log(shoreAm.length +" total shore edges")
+    console.log(shoreAm)
+}
+
+
+
+function edgeTypes(){
+    let c = document.getElementById("elevationCanvas")
+    let ctx = c.getContext('2d');
+    for(let e = 0;e < map.landTri.length; e++){
+        let tri = map.landTri[e]
+        let sp = map.points[tri]
+        ctx.fillStyle = "magenta"
+        ctx.beginPath()
+        ctx.fillRect(sp.x,sp.y,5,5);
+
+        let prev = nextHalfedge(tri)
+
+        let eop = edgesAroundPoint(prev)
+        //.map(r => map.points[map.triangles[r]]);
+
+        console.log("base index of triangle: " +tri)
+
+        for(let i = 0;i < eop.length; i++){
+            let tri = map.triangles[eop[i]]
+            let pt = map.points[tri]
+            let sp = map.points[map.triangles[map.halfedges[eop[i]]]]
+
+
+            console.log("sub index: " + map.points.indexOf(sp))
+            ctx.fillStyle = "yellow"
+            ctx.beginPath()
+            ctx.fillRect(sp.x,sp.y,5,5);
+
+
+            ctx.beginPath()
+            ctx.strokeStyle = "orange"
+            ctx.moveTo(sp.x,sp.y)
+            //ctx.lineTo(map.points[eop[e]].x,map.points[eop[e]].y)
+            ctx.lineTo(pt.x,pt.y)
+            ctx.stroke()
+        }
+    }
+}
+
+// WORKS
+let c = document.getElementById("elevationCanvas")
+let ctx = c.getContext('2d');
+for(let e = 0;e < map.landTri.length; e++){
+  let tri = map.landTri[e]
+  let sp = map.points[tri]
+	ctx.fillStyle = "yellow"
+  ctx.beginPath()
+  ctx.fillRect(sp.x,sp.y,5,5);
+
+}
+
+
+function findShore(){
+    let landPoints = getLandPoints()
+    let c = document.getElementById("elevationCanvas")
+    let ctx = c.getContext('2d');
+
+    for(let p = 0;p < landPoints.length; p++){
+        let landPoint = map.points[landPoints[p]]
+        
+        ctx.fillStyle = "magenta"
+        ctx.beginPath()
+        ctx.fillRect(landPoint.x,landPoint.y,5,5);
+
+        let ind = map.points.indexOf(landPoint)
+        let wtf = landPoints[p]
+
+        let eop = edgesAroundPoint(parseInt(landPoints[p]))
+        //.map(r => map.points[map.triangles[r]]);
+        console.log(eop)
+        for(let e = 0;e < eop.length; e++){
+            let tri = map.triangles[eop[e]]
+            let pt = map.points[tri]
+            let sp = map.points[map.triangles[map.halfedges[eop[e]]]]
+
+            ctx.fillStyle = "yellow"
+            ctx.beginPath()
+            ctx.fillRect(sp.x,sp.y,5,5);
+
+
+            ctx.beginPath()
+            ctx.strokeStyle = "orange"
+            ctx.moveTo(sp.x,sp.y)
+            //ctx.lineTo(map.points[eop[e]].x,map.points[eop[e]].y)
+            ctx.lineTo(pt.x,pt.y)
+            ctx.stroke()
+        }
+    }
+}
+*/
