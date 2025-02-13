@@ -18,15 +18,15 @@
         <aside id="settings" class="column is-2 is-narrow-mobile is-fullheight section is-hidden-mobile">
             <p class="menu-label is-hidden-touch is-underlined">Settings</p>
             <br/>
-            <button class="button is-primary" id="genBtn" onclick="genPoint()">gen</button>
-            <button class="button is-primary" id="genBtn" onclick="genPoint(true)">gen lines</button>
+            <button class="button is-primary" id="genBtn" onclick="genMap()">gen</button>
+            <button class="button is-primary" id="genBtn" onclick="drawShore(true)">shores</button>
             <p class="menu-label is-hidden-touch smallDesc">canvas size</p>   
             <div>
                 <label></label>
                 <label for="canvasX" class="label">width</label>
-                <input type="text" id="canvasX" class="input" value="400" data-axis="width" onchange="updateCanvas(this)">
+                <input type="text" id="canvasX" class="input" value="400" data-axis="width" onchange="updateCanvasSize(this)">
                 <label for="canvasY" class="label">height</label>
-                <input type="text" id="canvasY" class="input" value="200" data-axis="height" onchange="updateCanvas(this)">
+                <input type="text" id="canvasY" class="input" value="200" data-axis="height" onchange="updateCanvasSize(this)">
             </div>
             <p class="menu-label is-hidden-touch smallDesc">poisson disc sampling</p>
             <div>
@@ -48,6 +48,7 @@
             </div>
             <p class="menu-label is-hidden-touch smallDesc">debug</p> 
             <div>
+                <input type="checkbox" id="renderPoissonLines"/> render poisson lines<br/>
                 <input type="checkbox" id="renderPoints"/> render points<br/>
                 <input type="checkbox" id="renderCenters"/> render centers<br/>
                 <input type="checkbox" id="renderTriangles"/> render triangles<br/>
@@ -66,8 +67,8 @@
         <div id="mainCont" class="container column is-10 is-fullhd">
             <h1 class="title">eFISHent point stuff</h1>
                 <div class="canvasWrap">
-                    <canvas id="myCanvas" width="400" height="200"></canvas> 
-                    <label for="myCanvas" class="label">poisson</label>
+                    <canvas id="poissonCanvas" width="400" height="200"></canvas> 
+                    <label for="poissonCanvas" class="label">poisson</label>
                 </div>
                 <div class="canvasWrap">
                     <canvas id="voroCanvas" width="400" height="200"></canvas>
