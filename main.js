@@ -47,6 +47,16 @@ function edgesAroundPoint(start) {
     } while (incoming !== -1 && incoming !== start);
     return result;
 }
+// helper to get edgesAroundPoint from point id/index
+function pointIdToPoint(pId){
+    for (let e = 0; e < map.triangles.length; e++) {
+        const p = map.triangles[nextHalfedge(e)];
+        if (map.points.indexOf(map.points[p])==pId) {
+            //return first result as multiple edges will end there
+            return e
+        }
+    }
+}
 
 
 
@@ -360,95 +370,95 @@ function drawShore(drawEdges){
     let c = document.getElementById("elevationCanvas")
     let ctx = c.getContext('2d');
     let landPoints = getLandPoints()
-    const seen = new Set();  // of point ids
+    let shorePoints = []
 
+    for (let e = 0; e < landPoints.length; e++) {
+        let originPoint = pointIdToPoint(landPoints[e])
+        const edges = edgesAroundPoint(originPoint);
+        
+        for(let i = 0;i < edges.length; i++){
+            let ptIndex = map.triangles[edges[i]]
+            let pt = map.points[ptIndex]
+            let triangle = triangleOfEdge(edges[i])
+            if(!landPoints.includes(ptIndex)){
+                let oppositeEdge = map.halfedges[edges[i]]
+                let oppositeTri = triangleOfEdge(oppositeEdge)
+                let oppositePoint = map.points[map.triangles[oppositeEdge]]
+                let coastP1 = map.centers[triangle]
+                let coastP2 = map.centers[oppositeTri]
 
-    //loop through triangles to get points, check if points are in landPoints
-    for (let e = 0; e < map.triangles.length; e++) {
-        const p = map.triangles[nextHalfedge(e)];
-        let pIndex = map.points.indexOf(map.points[p])
-        if (!seen.has(p)&&landPoints.includes(pIndex)) {
-            seen.add(p);
-            const edges = edgesAroundPoint(e);
+                //paint shore line (voronoi edges)
+                ctx.beginPath()
+                ctx.strokeStyle = "magenta"
+                ctx.moveTo(coastP1.x,coastP1.y)
+                ctx.lineTo(coastP2.x,coastP2.y)
+                ctx.stroke()
 
-
-            for(let i = 0;i < edges.length; i++){
-                let ptIndex = map.triangles[edges[i]]
-                let pt = map.points[ptIndex]
-                let triangle = triangleOfEdge(edges[i])
-                if(!landPoints.includes(ptIndex)){
-                    let oppositeEdge = map.halfedges[edges[i]]
-                    let oppositeTri = triangleOfEdge(oppositeEdge)
-                    let oppositePoint = map.points[map.triangles[oppositeEdge]]
-                    let coastP1 = map.centers[triangle]
-                    let coastP2 = map.centers[oppositeTri]
-
-
-                    //paint shore line (voronoi edges)
+                if(drawEdges){
+                    // paint edges with one point on land and one in water
                     ctx.beginPath()
-                    ctx.strokeStyle = "magenta"
-                    ctx.moveTo(coastP1.x,coastP1.y)
-                    //ctx.lineTo(map.points[eop[e]].x,map.points[eop[e]].y)
-                    ctx.lineTo(coastP2.x,coastP2.y)
+                    ctx.strokeStyle = "orange"
+                    ctx.moveTo(oppositePoint.x,oppositePoint.y)
+                    ctx.lineTo(pt.x,pt.y)
                     ctx.stroke()
+                }
 
-                    if(drawEdges){
-                        // paint edges with one point on land and one in water
-                        ctx.beginPath()
-                        ctx.strokeStyle = "orange"
-                        ctx.moveTo(oppositePoint.x,oppositePoint.y)
-                        ctx.lineTo(pt.x,pt.y)
-                        ctx.stroke()
-                    }
+                if(!shorePoints.includes(map.triangles[oppositeEdge])){
+                    shorePoints.push(map.triangles[oppositeEdge])
                 }
             }
-
         }
     }
+
+    map.shorePoints = shorePoints
     
+}
+
+function renderShorePoints(){
+    let c = document.getElementById("elevationCanvas")
+    let ctx = c.getContext('2d');
+    for(let p in map.shorePoints){
+        let pt = map.points[map.shorePoints[p]]
+
+        ctx.fillStyle = "yellow"
+        ctx.beginPath()
+        ctx.fillRect(pt.x,pt.y,2,2);
+    }
 }
 
 function drawPolyById(inp){
     let c = document.getElementById("elevationCanvas")
     let ctx = c.getContext('2d');
    
-    const seen = new Set();  // of point ids
-    for (let e = 0; e < map.triangles.length; e++) {
-        const p = map.triangles[nextHalfedge(e)];
-        if (!seen.has(p)&&map.points.indexOf(map.points[p])==inp) {
-            seen.add(p);
-            const edges = edgesAroundPoint(e);
-            const triangles = edges.map(e => triangleOfEdge(e))
-            const vertices = triangles.map(e => map.centers[e])
+    let originPt = pointIdToPoint(inp)
+    const edges = edgesAroundPoint(originPt);
+    const triangles = edges.map(e => triangleOfEdge(e))
+    const vertices = triangles.map(p => map.centers[p])
 
-            console.log("origin point: " +map.points.indexOf(map.points[map.triangles[map.halfedges[edges[0]]]]))
+    //console.log("origin point: " +map.points.indexOf(map.points[map.triangles[map.halfedges[edges[0]]]]))
 
 
 
-            ctx.strokeStyle = "magenta"
-            ctx.beginPath();
-            ctx.moveTo(vertices[0].x, vertices[0].y);
-            for (let i = 1; i < vertices.length; i++) {
-                ctx.lineTo(vertices[i].x, vertices[i].y);
-            }
-            ctx.lineTo(vertices[0].x, vertices[0].y);
-            ctx.stroke()
-
-
-            for(let i = 0;i < edges.length; i++){
-                let tri = map.triangles[edges[i]]
-                let pt = map.points[tri]
-                let sp = map.points[map.triangles[map.halfedges[edges[i]]]]
-    
-                ctx.beginPath()
-                ctx.strokeStyle = "orange"
-                ctx.moveTo(sp.x,sp.y)
-                //ctx.lineTo(map.points[eop[e]].x,map.points[eop[e]].y)
-                ctx.lineTo(pt.x,pt.y)
-                ctx.stroke()
-            }
- 
-        }
+    ctx.strokeStyle = "magenta"
+    ctx.beginPath();
+    ctx.moveTo(vertices[0].x, vertices[0].y);
+    for (let i = 1; i < vertices.length; i++) {
+        ctx.lineTo(vertices[i].x, vertices[i].y);
     }
+    ctx.lineTo(vertices[0].x, vertices[0].y);
+    ctx.stroke()
 
+
+    for(let i = 0;i < edges.length; i++){
+        let tri = map.triangles[edges[i]]
+        let pt = map.points[tri]
+        let sp = map.points[map.triangles[map.halfedges[edges[i]]]]
+
+        ctx.beginPath()
+        ctx.strokeStyle = "orange"
+        ctx.moveTo(sp.x,sp.y)
+        //ctx.lineTo(map.points[eop[e]].x,map.points[eop[e]].y)
+        ctx.lineTo(pt.x,pt.y)
+        ctx.stroke()
+    }
 }
